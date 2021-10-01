@@ -81,14 +81,30 @@ func (in AccessAction) String() string {
 
 // ListRobotAccounts ListProjectRobots returns a list of all robot accounts.
 func (c *RESTClient) ListRobotAccounts(ctx context.Context) ([]*modelv2.Robot, error) {
-	resp, err := c.V2Client.Robot.ListRobot(&robot.ListRobotParams{
-		Context: ctx,
-	}, c.AuthInfo)
-	if err != nil {
-		return nil, handleSwaggerRobotErrors(err)
-	}
+	var robotAccounts []*modelv2.Robot
+	var page int64 = 1
+	var pageSize int64 = 10
 
-	return resp.Payload, nil
+	for {
+		resp, err := c.V2Client.Robot.ListRobot(&robot.ListRobotParams{
+			Context:  ctx,
+			Page:     &page,
+			PageSize: &pageSize,
+		}, c.AuthInfo)
+		if err != nil {
+			return nil, handleSwaggerRobotErrors(err)
+		}
+
+		robotAccounts = append(robotAccounts, resp.Payload...)
+
+		if page*pageSize >= resp.XTotalCount {
+			break
+		}
+
+		page += 1
+
+	}
+	return robotAccounts, nil
 }
 
 // GetRobotAccountByName GetRobotByName lists all existing robot accounts and returns the one matching the provided name.
@@ -181,7 +197,7 @@ func (c *RESTClient) UpdateRobotAccount(ctx context.Context, r *modelv2.Robot) e
 
 // RefreshRobotAccountSecretByID updates the robot account secret with the provided string "sec", by its id and return a 'RobotSec' response.
 func (c *RESTClient) RefreshRobotAccountSecretByID(ctx context.Context, id int64, sec string) (*modelv2.RobotSec, error) {
-    r := &modelv2.RobotSec{Secret: sec}
+	r := &modelv2.RobotSec{Secret: sec}
 	res, err := c.V2Client.Robot.RefreshSec(&robot.RefreshSecParams{
 		RobotSec: r,
 		RobotID:  id,
